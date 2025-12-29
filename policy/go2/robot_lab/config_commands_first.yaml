@@ -1,0 +1,63 @@
+# Isaac Lab Go2 Velocity Rough - Commands First Order
+# 观测顺序: commands -> ang_vel -> gravity_vec -> dof_pos -> dof_vel -> actions
+
+robot_name: go2
+scene_name: robot_lab
+loop_rl: 0.02  # 50 Hz control
+
+model_path: policy/go2/robot_lab/policy_from_23599.pt
+
+# 观测空间配置 - Commands First (Isaac Lab 典型顺序)
+num_observations: 45
+observations:
+  - commands      # velocity commands (3) [vx, vy, omega_z]
+  - ang_vel       # base angular velocity (3)
+  - gravity_vec   # projected gravity (3)
+  - dof_pos       # joint positions relative to default (12)
+  - dof_vel       # joint velocities (12)
+  - actions       # previous actions (12)
+
+# 观测缩放
+ang_vel_scale: 0.25
+dof_pos_scale: 1.0
+dof_vel_scale: 0.05
+commands_scale: [1.0, 1.0, 1.0]  # [vx, vy, omega_z]
+
+# PD 控制参数
+rl_kp: [25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0]
+rl_kd: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+
+# 动作缩放
+action_scale:
+  - 0.125  # FL_hip
+  - 0.25   # FL_thigh
+  - 0.25   # FL_calf
+  - 0.125  # FR_hip
+  - 0.25   # FR_thigh
+  - 0.25   # FR_calf
+  - 0.125  # RL_hip
+  - 0.25   # RL_thigh
+  - 0.25   # RL_calf
+  - 0.125  # RR_hip
+  - 0.25   # RR_thigh
+  - 0.25   # RR_calf
+
+# 默认关节位置
+default_dof_pos:
+  - 0.0    # FL_hip
+  - 0.8    # FL_thigh
+  - -1.5   # FL_calf
+  - 0.0    # FR_hip
+  - 0.8    # FR_thigh
+  - -1.5   # FR_calf
+  - 0.0    # RL_hip
+  - 0.8    # RL_thigh
+  - -1.5   # RL_calf
+  - 0.0    # RR_hip
+  - 0.8    # RR_thigh
+  - -1.5   # RR_calf
+
+# FSM 参数
+getup_duration: 2.0
+getup_kp: [60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0]
+getup_kd: [5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0]

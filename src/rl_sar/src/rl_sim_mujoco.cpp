@@ -340,8 +340,41 @@ void RL_Sim::RunModel()
         //     this->obs.commands = {(float)this->cmd_vel.linear.x, (float)this->cmd_vel.linear.y, (float)this->cmd_vel.angular.z};
         // }
         this->obs.base_quat = this->robot_state.imu.quaternion;
+        this->obs.gravity_vec = {0.0f, 0.0f, -1.0f};  // World frame gravity
+        
+        // Debug: print quaternion
+        static int debug_counter = 0;
+        if (debug_counter < 3) {
+            std::cout << "[DEBUG] base_quat: [" 
+                      << this->obs.base_quat[0] << ", "
+                      << this->obs.base_quat[1] << ", "
+                      << this->obs.base_quat[2] << ", "
+                      << this->obs.base_quat[3] << "]" << std::endl;
+            debug_counter++;
+        }
+        
         this->obs.dof_pos = this->robot_state.motor_state.q;
         this->obs.dof_vel = this->robot_state.motor_state.dq;
+
+        // DEBUG: Print raw observations before Forward()
+        static int raw_debug = 0;
+        if (raw_debug < 3 && this->episode_length_buf > 1) {
+            std::cout << "\n[DEBUG RAW] Timestep " << this->episode_length_buf << " raw observations:" << std::endl;
+            std::cout << "  ang_vel: [" << this->obs.ang_vel[0] << ", " << this->obs.ang_vel[1] << ", " << this->obs.ang_vel[2] << "]" << std::endl;
+            std::cout << "  commands: [" << this->obs.commands[0] << ", " << this->obs.commands[1] << ", " << this->obs.commands[2] << "]" << std::endl;
+            std::cout << "  base_quat: [" << this->obs.base_quat[0] << ", " << this->obs.base_quat[1] << ", " << this->obs.base_quat[2] << ", " << this->obs.base_quat[3] << "]" << std::endl;
+            std::cout << "  dof_pos[0-5]: [";
+            for (int i = 0; i < 6 && i < this->obs.dof_pos.size(); ++i) {
+                std::cout << this->obs.dof_pos[i] << ", ";
+            }
+            std::cout << "...]" << std::endl;
+            std::cout << "  dof_vel[0-5]: [";
+            for (int i = 0; i < 6 && i < this->obs.dof_vel.size(); ++i) {
+                std::cout << this->obs.dof_vel[i] << ", ";
+            }
+            std::cout << "...]" << std::endl;
+            raw_debug++;
+        }
 
         this->obs.actions = this->Forward();
         this->ComputeOutput(this->obs.actions, this->output_dof_pos, this->output_dof_vel, this->output_dof_tau);
@@ -385,6 +418,24 @@ std::vector<float> RL_Sim::Forward()
     }
 
     std::vector<float> clamped_obs = this->ComputeObservation();
+
+    // DEBUG: Print observations for the first few timesteps
+    static int debug_counter = 0;
+    if (debug_counter < 5 && this->episode_length_buf > 1) {
+        std::cout << "\n[DEBUG] Timestep " << this->episode_length_buf << " observations:" << std::endl;
+        std::cout << "  Total dims: " << clamped_obs.size() << std::endl;
+        int idx = 0;
+        for (const auto& dim : this->obs_dims) {
+            std::cout << "  [" << idx << "-" << (idx + dim - 1) << "]: ";
+            for (int i = 0; i < dim && i < 12; ++i) {
+                std::cout << clamped_obs[idx + i] << " ";
+            }
+            if (dim > 12) std::cout << "...";
+            std::cout << std::endl;
+            idx += dim;
+        }
+        debug_counter++;
+    }
 
     std::vector<float> actions;
     if (this->params.Get<std::vector<int>>("observations_history").size() != 0)

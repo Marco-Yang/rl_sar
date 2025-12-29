@@ -24,29 +24,32 @@ void RL::StateController(const RobotState<float>* state, RobotCommand<float>* co
 
     this->motiontime++;
 
+    // Conservative control increments for robot_lab policy  
+    float control_increment = 0.2f;  // Start conservative
+    
     if (this->control.current_keyboard == Input::Keyboard::W)
     {
-        this->control.x += 0.1f;
+        this->control.x += control_increment;
     }
     if (this->control.current_keyboard == Input::Keyboard::S)
     {
-        this->control.x -= 0.1f;
+        this->control.x -= control_increment;
     }
     if (this->control.current_keyboard == Input::Keyboard::A)
     {
-        this->control.y += 0.1f;
+        this->control.y += control_increment;
     }
     if (this->control.current_keyboard == Input::Keyboard::D)
     {
-        this->control.y -= 0.1f;
+        this->control.y -= control_increment;
     }
     if (this->control.current_keyboard == Input::Keyboard::Q)
     {
-        this->control.yaw += 0.1f;
+        this->control.yaw += control_increment;
     }
     if (this->control.current_keyboard == Input::Keyboard::E)
     {
-        this->control.yaw -= 0.1f;
+        this->control.yaw -= control_increment;
     }
     if (this->control.current_keyboard == Input::Keyboard::Space)
     {
@@ -54,6 +57,13 @@ void RL::StateController(const RobotState<float>* state, RobotCommand<float>* co
         this->control.y = 0.0f;
         this->control.yaw = 0.0f;
     }
+    
+    // CRITICAL: Clip commands to Isaac Lab training range [-1.0, 1.0]
+    // This is essential for proper policy behavior!
+    this->control.x = std::clamp(this->control.x, -1.0f, 1.0f);
+    this->control.y = std::clamp(this->control.y, -1.0f, 1.0f);
+    this->control.yaw = std::clamp(this->control.yaw, -1.0f, 1.0f);
+    
     if (this->control.current_keyboard == Input::Keyboard::N || this->control.current_gamepad == Input::Gamepad::X)
     {
         this->control.navigation_mode = !this->control.navigation_mode;
@@ -87,6 +97,25 @@ std::vector<float> RL::ComputeObservation()
         }
         else if (observation == "gravity_vec")
         {
+            // DEBUG: Print gravity transformation
+            static int grav_debug = 0;
+            if (grav_debug < 2) {
+                std::cout << "[DEBUG GRAVITY] Before transform: [" 
+                          << this->obs.gravity_vec[0] << ", " 
+                          << this->obs.gravity_vec[1] << ", " 
+                          << this->obs.gravity_vec[2] << "]" << std::endl;
+                std::cout << "[DEBUG GRAVITY] base_quat: [" 
+                          << this->obs.base_quat[0] << ", " 
+                          << this->obs.base_quat[1] << ", " 
+                          << this->obs.base_quat[2] << ", " 
+                          << this->obs.base_quat[3] << "]" << std::endl;
+                auto transformed = QuatRotateInverse(this->obs.base_quat, this->obs.gravity_vec);
+                std::cout << "[DEBUG GRAVITY] After transform: [" 
+                          << transformed[0] << ", " 
+                          << transformed[1] << ", " 
+                          << transformed[2] << "]" << std::endl;
+                grav_debug++;
+            }
             obs_list.push_back(QuatRotateInverse(this->obs.base_quat, this->obs.gravity_vec));
         }
         else if (observation == "commands")
@@ -188,7 +217,7 @@ void RL::InitObservations()
     this->obs.ang_vel = {0.0f, 0.0f, 0.0f};
     this->obs.gravity_vec = {0.0f, 0.0f, -1.0f};
     this->obs.commands = {0.0f, 0.0f, 0.0f};
-    this->obs.base_quat = {0.0f, 0.0f, 0.0f, 1.0f};
+    this->obs.base_quat = {1.0f, 0.0f, 0.0f, 0.0f};  // [w, x, y, z] - identity quaternion
     this->obs.dof_pos = this->params.Get<std::vector<float>>("default_dof_pos");
     this->obs.dof_vel.clear();
     this->obs.dof_vel.resize(this->params.Get<int>("num_of_dofs"), 0.0f);
@@ -245,7 +274,8 @@ void RL::InitRL(std::string robot_config_path)
     }
 
     // init model
-    std::string model_path = std::string(POLICY_DIR) + "/" + robot_config_path + "/" + this->params.Get<std::string>("model_name");
+    std::string model_name = this->params.Get<std::string>("model_name");
+    std::string model_path = std::string(POLICY_DIR) + "/" + robot_config_path + "/" + model_name;
     this->model = InferenceRuntime::ModelFactory::load_model(model_path);
     if (!this->model)
     {

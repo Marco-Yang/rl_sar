@@ -162,8 +162,12 @@ public:
         rl.episode_length_buf = 0;
 
         // read params from yaml
-        rl.config_name = "himloco";
+        // Try to use config from environment variable or default to "himloco"
+        const char* config_env = std::getenv("RL_CONFIG");
+        rl.config_name = config_env ? std::string(config_env) : "himloco";
         std::string robot_config_path = rl.robot_name + "/" + rl.config_name;
+        std::cout << LOGGER::INFO << "Loading config: " << robot_config_path << std::endl;
+        
         try
         {
             rl.InitRL(robot_config_path);
