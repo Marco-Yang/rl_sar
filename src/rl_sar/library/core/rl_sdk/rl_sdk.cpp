@@ -58,11 +58,8 @@ void RL::StateController(const RobotState<float>* state, RobotCommand<float>* co
         this->control.yaw = 0.0f;
     }
     
-    // CRITICAL: Clip commands to Isaac Lab training range [-1.0, 1.0]
-    // This is essential for proper policy behavior!
-    this->control.x = std::clamp(this->control.x, -1.0f, 1.0f);
-    this->control.y = std::clamp(this->control.y, -1.0f, 1.0f);
-    this->control.yaw = std::clamp(this->control.yaw, -1.0f, 1.0f);
+    // Note: Speed limits removed to allow higher velocity commands
+    // Original Isaac Lab training range was [-1.0, 1.0] but user requested unlimited control
     
     if (this->control.current_keyboard == Input::Keyboard::N || this->control.current_gamepad == Input::Gamepad::X)
     {
